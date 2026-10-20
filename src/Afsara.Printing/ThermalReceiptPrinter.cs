@@ -2,6 +2,7 @@ using System.Drawing.Printing;
 using System.Windows.Forms;
 using Afsara.Application.Common;
 using Afsara.Application.Common.Interfaces;
+using Afsara.Application.Days;
 using Afsara.Application.Printing;
 using Afsara.Application.Reports;
 using Afsara.Application.Settings;
@@ -29,11 +30,11 @@ public class ThermalReceiptPrinter : IReceiptPrinter
             $"KOT {ticket.OrderNo}-{ticket.KotNumber}", "Kitchen Order Ticket");
     }
 
-    public async Task PrintInvoiceAsync(InvoiceDocument invoice)
+    public async Task PrintInvoiceAsync(InvoiceDocument invoice, bool skipPreview = false)
     {
         var settings = await _settings.GetAsync();
         var copies = invoice.IsPaid && !invoice.IsDuplicate ? settings.InvoiceCopies : 1;
-        Print(InvoiceLayout.Build(invoice), settings.InvoicePrinterName, settings.ShowPrintPreview, copies,
+        Print(InvoiceLayout.Build(invoice), settings.InvoicePrinterName, settings.ShowPrintPreview && !skipPreview, copies,
             $"Invoice {invoice.InvoiceNo}", invoice.IsPaid ? "Sales Invoice" : "Guest Bill");
     }
 
@@ -43,6 +44,22 @@ public class ThermalReceiptPrinter : IReceiptPrinter
         var receipt = SalesSummaryLayout.Build(report, settings, _session.CurrentUser?.FullName ?? string.Empty);
         Print(receipt, settings.InvoicePrinterName, settings.ShowPrintPreview, 1,
             $"Sales Summary {report.From:yyyyMMdd}", "Sales Summary");
+    }
+
+    public async Task PrintDaySalesAsync(DaySalesReport report)
+    {
+        var settings = await _settings.GetAsync();
+        var receipt = DaySalesLayout.Build(report, settings, _session.CurrentUser?.FullName ?? string.Empty);
+        Print(receipt, settings.InvoicePrinterName, settings.ShowPrintPreview, 1,
+            $"Day Sales {report.From:yyyyMMdd}", "Day Sales Report");
+    }
+
+    public async Task PrintDayReportAsync(DayReport report, bool duplicate = false)
+    {
+        var settings = await _settings.GetAsync();
+        var receipt = DayCloseLayout.Build(report, settings, _session.CurrentUser?.FullName ?? string.Empty, duplicate);
+        Print(receipt, settings.InvoicePrinterName, settings.ShowPrintPreview, 1,
+            $"Day Report {report.BusinessDate:yyyyMMdd}", report.IsClosed ? "Day Close Report" : "Day Status Report");
     }
 
     private static void Print(Receipt receipt, string? printerName, bool preview, int copies, string documentName, string title)

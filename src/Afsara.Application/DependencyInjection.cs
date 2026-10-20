@@ -2,6 +2,7 @@ using Afsara.Application.Auth;
 using Afsara.Application.Catalog;
 using Afsara.Application.Common;
 using Afsara.Application.Customers;
+using Afsara.Application.Days;
 using Afsara.Application.Orders;
 using Afsara.Application.Reports;
 using Afsara.Application.Settings;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddTransient<ICustomerService, CustomerService>();
         services.AddTransient<IOrderService, OrderService>();
         services.AddTransient<IReportService, ReportService>();
+        services.AddTransient<IBusinessDayService, BusinessDayService>();
         return services;
     }
 }

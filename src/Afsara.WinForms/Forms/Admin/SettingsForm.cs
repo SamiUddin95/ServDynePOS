@@ -21,7 +21,7 @@ public class SettingsForm : Form
     private readonly TextBox _currency = Theme.TextBox();
     private readonly NumericUpDown _cashTax = Theme.Numeric(100, 2);
     private readonly NumericUpDown _cardTax = Theme.Numeric(100, 2);
-    private readonly NumericUpDown _service = Theme.Numeric(100, 2);
+    private readonly NumericUpDown _service = Theme.Numeric(100_000);
     private readonly NumericUpDown _delivery = Theme.Numeric(100_000);
     private readonly TextBox _footer = Theme.TextBox();
     private readonly TextBox _logo = Theme.TextBox("Optional - PNG/JPG shown on invoice");
@@ -66,7 +66,7 @@ public class SettingsForm : Form
         AddField(billing, "Currency Symbol", _currency);
         AddField(billing, "Sales Tax % (Cash)", _cashTax);
         AddField(billing, "Sales Tax % (Card / Online)", _cardTax);
-        AddField(billing, "Service Charges % (Dine In)", _service);
+        AddField(billing, "Service Charges (Dine In, fixed amount)", _service);
         AddField(billing, "Default Delivery Charges", _delivery);
         AddField(billing, "KOT Printer (Kitchen)", _kotPrinter);
         AddField(billing, "Invoice Printer (Counter)", _invoicePrinter);
@@ -129,7 +129,7 @@ public class SettingsForm : Form
         _currency.Text = s.CurrencySymbol;
         _cashTax.Value = s.CashTaxPercent;
         _cardTax.Value = s.CardTaxPercent;
-        _service.Value = s.ServiceChargePercent;
+        _service.Value = Math.Clamp(s.ServiceChargeAmount, 0, 100_000);
         _delivery.Value = s.DefaultDeliveryCharge;
         _footer.Text = s.InvoiceFooter;
         _logo.Text = s.LogoPath ?? string.Empty;
@@ -181,7 +181,7 @@ public class SettingsForm : Form
                 CurrencySymbol = string.IsNullOrWhiteSpace(_currency.Text) ? "Rs." : _currency.Text,
                 CashTaxPercent = _cashTax.Value,
                 CardTaxPercent = _cardTax.Value,
-                ServiceChargePercent = _service.Value,
+                ServiceChargeAmount = (int)_service.Value,
                 DefaultDeliveryCharge = _delivery.Value,
                 InvoiceFooter = _footer.Text,
                 LogoPath = string.IsNullOrWhiteSpace(_logo.Text) ? null : _logo.Text.Trim(),

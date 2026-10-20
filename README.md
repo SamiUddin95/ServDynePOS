@@ -10,6 +10,7 @@ Restaurant Point of Sale for Windows (.NET 8 WinForms + EF Core + SQL Server), b
 - **Kitchen Order Tickets (KOT)**: first KOT, additional KOT (only newly added quantities), cancellation KOT for voided items/orders, grouped by kitchen section
 - **Billing**: guest bill, cash/card/online settlement, tax % per payment method, service charges, % or flat discounts, change calculation
 - **Thermal printing** (80mm) of KOTs, invoices and day-end sales summary, with optional print preview and separate kitchen/counter printers
+- **Business day (Opening balance & Day Close)**: open the day with the opening cash float; all orders are posted to the open day's business date (even past midnight); Day Close (Manager/Admin) is blocked while orders are running, counts cash by denomination, shows expected vs counted cash with short/over variance (reason required), and prints a **Z-Report**. An **X-Report** (status) can be printed anytime; closed days can be reprinted from Reports > Day Closings
 - **Running orders** and table status (free/occupied, amount, elapsed time)
 - **Setup**: menu items, categories, tables, waiters, users (Admin / Manager / Cashier roles)
 - **Reports**: sales summary, payment and order-type breakdown, item-wise sales, invoice reprint, export to **Excel (.xlsx)** and **PDF**

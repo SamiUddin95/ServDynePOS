@@ -22,6 +22,12 @@ public enum OrderStatus
     Cancelled = 3
 }
 
+public enum BusinessDayStatus
+{
+    Open = 1,
+    Closed = 2
+}
+
 public enum PaymentMethod
 {
     Cash = 1,

@@ -20,6 +20,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
     public DbSet<AppLicense> Licenses => Set<AppLicense>();
+    public DbSet<BusinessDay> BusinessDays => Set<BusinessDay>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

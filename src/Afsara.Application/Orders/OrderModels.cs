@@ -41,7 +41,6 @@ public class OrderTotals
     public decimal SubTotal { get; set; }
     public decimal DiscountPercent { get; set; }
     public decimal DiscountAmount { get; set; }
-    public decimal ServiceChargePercent { get; set; }
     public decimal ServiceCharge { get; set; }
     public decimal TaxPercent { get; set; }
     public decimal TaxAmount { get; set; }

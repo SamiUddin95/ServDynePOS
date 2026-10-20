@@ -9,6 +9,7 @@ public static class KotLayout
     public static Receipt Build(KotTicket kot)
     {
         var title = kot.IsCancellation ? "ORDER CANCELLED"
+            : kot.IsDuplicate ? "DUPLICATE KOT"
             : kot.IsAdditional ? "ADDITIONAL KOT"
             : "KITCHEN ORDER TICKET";
 

@@ -6,6 +6,7 @@ public class KotTicket
     public int KotNumber { get; set; }
     public bool IsAdditional { get; set; }
     public bool IsCancellation { get; set; }
+    public bool IsDuplicate { get; set; }
     public string OrderNo { get; set; } = string.Empty;
     public string OrderType { get; set; } = string.Empty;
     public string? TableName { get; set; }
@@ -57,7 +58,6 @@ public class InvoiceDocument
     public decimal SubTotal { get; set; }
     public decimal DiscountPercent { get; set; }
     public decimal Discount { get; set; }
-    public decimal ServiceChargePercent { get; set; }
     public decimal ServiceCharge { get; set; }
     public decimal TaxPercent { get; set; }
     public decimal Tax { get; set; }

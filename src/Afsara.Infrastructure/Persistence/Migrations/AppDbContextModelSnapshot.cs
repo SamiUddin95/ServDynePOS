@@ -66,6 +66,135 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                     b.ToTable("Licenses", (string)null);
                 });
 
+            modelBuilder.Entity("Afsara.Domain.Entities.BusinessDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("BusinessDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("CancelledOrders")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CardSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CashCount")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("CashSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CashVariance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ClosedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClosingNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("CompletedOrders")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CountedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DeliveryCharges")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DeliverySales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DineInSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Discounts")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ExpectedCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("GrossSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NetSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OnlineSales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("OpenedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OpeningNotes")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<decimal>("ServiceCharges")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TakeAwaySales")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Taxes")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDate");
+
+                    b.HasIndex("ClosedByUserId");
+
+                    b.HasIndex("OpenedByUserId");
+
+                    b.HasIndex("Status")
+                        .IsUnique()
+                        .HasFilter("[Status] = 1");
+
+                    b.ToTable("BusinessDays");
+                });
+
             modelBuilder.Entity("Afsara.Domain.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -234,6 +363,9 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("BusinessDate")
                         .HasColumnType("date");
 
+                    b.Property<int?>("BusinessDayId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CancelReason")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
@@ -309,9 +441,8 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("ServiceChargePercent")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<int>("ServiceChargeAmount")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -338,6 +469,8 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessDayId");
 
                     b.HasIndex("CreatedByUserId");
 
@@ -470,9 +603,8 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
-                    b.Property<decimal>("ServiceChargePercent")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<int>("ServiceChargeAmount")
+                        .HasColumnType("int");
 
                     b.Property<bool>("ShowPrintPreview")
                         .HasColumnType("bit");
@@ -563,6 +695,24 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                     b.ToTable("Waiters");
                 });
 
+            modelBuilder.Entity("Afsara.Domain.Entities.BusinessDay", b =>
+                {
+                    b.HasOne("Afsara.Domain.Entities.User", "ClosedBy")
+                        .WithMany()
+                        .HasForeignKey("ClosedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Afsara.Domain.Entities.User", "OpenedBy")
+                        .WithMany()
+                        .HasForeignKey("OpenedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ClosedBy");
+
+                    b.Navigation("OpenedBy");
+                });
+
             modelBuilder.Entity("Afsara.Domain.Entities.MenuItem", b =>
                 {
                     b.HasOne("Afsara.Domain.Entities.Category", "Category")
@@ -576,6 +726,11 @@ namespace Afsara.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Afsara.Domain.Entities.Order", b =>
                 {
+                    b.HasOne("Afsara.Domain.Entities.BusinessDay", "BusinessDay")
+                        .WithMany()
+                        .HasForeignKey("BusinessDayId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Afsara.Domain.Entities.User", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
@@ -596,6 +751,8 @@ namespace Afsara.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("WaiterId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BusinessDay");
 
                     b.Navigation("CreatedBy");
 

@@ -18,10 +18,21 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-            .Build();
+        IConfiguration configuration;
+        try
+        {
+            configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+                .Build();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"appsettings.json could not be read.\n\n{ex.Message}\n\nNote: backslashes must be doubled in JSON, e.g. \"Server=.\\\\SQLEXPRESS;...\"",
+                $"{Brand.Product} - Configuration Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
 
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);

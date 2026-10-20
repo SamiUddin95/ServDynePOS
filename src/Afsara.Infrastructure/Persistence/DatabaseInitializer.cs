@@ -39,7 +39,7 @@ public class DatabaseInitializer : IDatabaseInitializer
                 CurrencySymbol = "Rs.",
                 CashTaxPercent = 16,
                 CardTaxPercent = 5,
-                ServiceChargePercent = 0,
+                ServiceChargeAmount = 0,
                 DefaultDeliveryCharge = 150,
                 InvoiceFooter = "Thank you for dining with us! Please visit again."
             });

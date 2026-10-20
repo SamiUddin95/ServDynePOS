@@ -39,7 +39,7 @@ public class SettingsService : ISettingsService
         entity.CurrencySymbol = setting.CurrencySymbol.Trim();
         entity.CashTaxPercent = setting.CashTaxPercent;
         entity.CardTaxPercent = setting.CardTaxPercent;
-        entity.ServiceChargePercent = setting.ServiceChargePercent;
+        entity.ServiceChargeAmount = setting.ServiceChargeAmount;
         entity.DefaultDeliveryCharge = setting.DefaultDeliveryCharge;
         entity.InvoiceFooter = setting.InvoiceFooter.Trim();
         entity.LogoPath = setting.LogoPath;

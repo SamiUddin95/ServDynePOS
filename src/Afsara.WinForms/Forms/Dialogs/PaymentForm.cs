@@ -22,6 +22,7 @@ public class PaymentForm : Form
 
     public PaymentMethod Method { get; private set; } = PaymentMethod.Cash;
     public decimal Received => _received.Value;
+    public bool PrintReceipt { get; private set; } = true;
 
     public PaymentForm(Dictionary<PaymentMethod, OrderTotals> totals, string currency, string orderTitle)
     {
@@ -85,12 +86,28 @@ public class PaymentForm : Form
         row++;
 
         right.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+        var actions = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, Margin = new Padding(0) };
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 24));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
+        actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
         var cancel = Theme.OutlineButton("Cancel (Esc)");
         cancel.DialogResult = DialogResult.Cancel;
+        var complete = Theme.Button("COMPLETE ORDER (F2)\nNo Print", Theme.Primary, 10.5f);
+        complete.Click += (_, _) => Settle(print: false);
         var settle = Theme.Button("SETTLE && PRINT (Enter)", Theme.Success, 12f);
-        settle.Click += (_, _) => Settle();
-        right.Controls.Add(cancel, 0, row);
-        right.Controls.Add(settle, 1, row);
+        settle.Click += (_, _) => Settle(print: true);
+        actions.Controls.Add(cancel, 0, 0);
+        actions.Controls.Add(complete, 1, 0);
+        actions.Controls.Add(settle, 2, 0);
+        right.Controls.Add(actions, 0, row);
+        right.SetColumnSpan(actions, 2);
+
+        KeyDown += (_, e) =>
+        {
+            if (e.KeyCode != Keys.F2) return;
+            e.Handled = true;
+            Settle(print: false);
+        };
 
         AcceptButton = settle;
         CancelButton = cancel;
@@ -162,13 +179,14 @@ public class PaymentForm : Form
         _change.ForeColor = change >= 0 ? Theme.Primary : Theme.Danger;
     }
 
-    private void Settle()
+    private void Settle(bool print)
     {
         if (Method == PaymentMethod.Cash && _received.Value < Current.GrandTotal)
         {
             Ui.Warn(this, "Received amount is less than the grand total.");
             return;
         }
+        PrintReceipt = print;
         DialogResult = DialogResult.OK;
     }
 

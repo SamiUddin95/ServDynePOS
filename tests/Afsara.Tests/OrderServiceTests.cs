@@ -37,7 +37,8 @@ public class OrderServiceTests
         _naan = new MenuItem { Name = "Naan", Price = 50, Category = category };
         _table = new DiningTable { Name = "T-1" };
         db.AddRange(user, category, _tikka, _naan, _table,
-            new RestaurantSetting { CashTaxPercent = 16, CardTaxPercent = 5 });
+            new RestaurantSetting { CashTaxPercent = 16, CardTaxPercent = 5 },
+            new BusinessDay { OpenedBy = user });
         db.SaveChanges();
 
         _session.SignIn(user);
@@ -92,6 +93,79 @@ public class OrderServiceTests
 
         var reloaded = await _service.GetDraftAsync(first.OrderId);
         Assert.Single(reloaded.Lines);
+    }
+
+    [Fact]
+    public async Task Kot_reprint_returns_full_duplicate_ticket_without_changing_state()
+    {
+        var first = await _service.SendToKitchenAsync(NewDineIn((_tikka, 2), (_naan, 3)));
+
+        var reprint = await _service.ReprintKotAsync(first.OrderId);
+
+        Assert.NotNull(reprint);
+        Assert.True(reprint!.IsDuplicate);
+        Assert.False(reprint.IsAdditional);
+        Assert.Equal(1, reprint.KotNumber);
+        Assert.Equal(2, reprint.Lines.Count);
+        Assert.Contains(reprint.Lines, l => l.Name == "Chicken Tikka" && l.Quantity == 2);
+        Assert.Contains(reprint.Lines, l => l.Name == "Naan" && l.Quantity == 3);
+
+        var again = await _service.ReprintKotAsync(first.OrderId);
+        Assert.Equal(1, again!.KotNumber);
+    }
+
+    [Fact]
+    public async Task Change_table_moves_running_order_to_free_table()
+    {
+        var orderId = await _service.SaveAsync(NewDineIn((_tikka, 1)));
+        var tableB = await AddTableAsync("T-2");
+
+        var name = await _service.ChangeTableAsync(orderId, tableB);
+
+        Assert.Equal("T-2", name);
+        var statuses = await _service.GetTableStatusesAsync();
+        Assert.Equal(orderId, statuses.Single(t => t.Name == "T-2").OpenOrderId);
+        Assert.False(statuses.Single(t => t.Name == "T-1").IsOccupied);
+    }
+
+    [Fact]
+    public async Task Change_table_to_occupied_table_is_rejected()
+    {
+        var orderId = await _service.SaveAsync(NewDineIn((_tikka, 1)));
+        var tableB = await AddTableAsync("T-2");
+        var other = NewDineIn((_naan, 1));
+        other.TableId = tableB;
+        await _service.SaveAsync(other);
+
+        await Assert.ThrowsAsync<AppException>(() => _service.ChangeTableAsync(orderId, tableB));
+    }
+
+    [Fact]
+    public async Task Change_table_on_takeaway_order_is_rejected()
+    {
+        var draft = NewDineIn((_tikka, 1));
+        draft.OrderType = OrderType.TakeAway;
+        var orderId = await _service.SaveAsync(draft);
+        var tableB = await AddTableAsync("T-2");
+
+        await Assert.ThrowsAsync<AppException>(() => _service.ChangeTableAsync(orderId, tableB));
+    }
+
+    private async Task<int> AddTableAsync(string name)
+    {
+        using var db = (AppDbContext)_factory.Create();
+        var table = new DiningTable { Name = name };
+        db.DiningTables.Add(table);
+        await db.SaveChangesAsync();
+        return table.Id;
+    }
+
+    [Fact]
+    public async Task Kot_reprint_returns_null_when_nothing_sent()
+    {
+        var orderId = await _service.SaveAsync(NewDineIn((_tikka, 1)));
+
+        Assert.Null(await _service.ReprintKotAsync(orderId));
     }
 
     [Fact]

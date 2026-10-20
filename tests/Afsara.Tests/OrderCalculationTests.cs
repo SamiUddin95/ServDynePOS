@@ -13,7 +13,7 @@ public class OrderCalculationTests
         {
             OrderType = OrderType.DineIn,
             DiscountPercent = 10,
-            ServiceChargePercent = 5,
+            ServiceChargeAmount = 50,
             TaxPercent = 16,
             Items = { new OrderItem { UnitPrice = 500, Quantity = 2 } }
         };
@@ -22,9 +22,9 @@ public class OrderCalculationTests
 
         Assert.Equal(1000, order.SubTotal);
         Assert.Equal(100, order.DiscountAmount);
-        Assert.Equal(45, order.ServiceCharge);
+        Assert.Equal(50, order.ServiceCharge);
         Assert.Equal(144, order.TaxAmount);
-        Assert.Equal(1089, order.GrandTotal);
+        Assert.Equal(1094, order.GrandTotal);
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class OrderCalculationTests
         var order = new Order
         {
             OrderType = OrderType.TakeAway,
-            ServiceChargePercent = 10,
+            ServiceChargeAmount = 100,
             DeliveryCharge = 200,
             Items =
             {

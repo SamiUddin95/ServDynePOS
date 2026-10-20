@@ -87,6 +87,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne(o => o.Waiter).WithMany().HasForeignKey(o => o.WaiterId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(o => o.Customer).WithMany().HasForeignKey(o => o.CustomerId).OnDelete(DeleteBehavior.SetNull);
         builder.HasOne(o => o.CreatedBy).WithMany().HasForeignKey(o => o.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(o => o.BusinessDay).WithMany().HasForeignKey(o => o.BusinessDayId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(o => o.Items)
             .WithOne(i => i.Order)
@@ -119,6 +120,23 @@ public class RestaurantSettingConfiguration : IEntityTypeConfiguration<Restauran
         builder.Property(s => s.LogoPath).HasMaxLength(400);
         builder.Property(s => s.KotPrinterName).HasMaxLength(200);
         builder.Property(s => s.InvoicePrinterName).HasMaxLength(200);
+    }
+}
+
+public class BusinessDayConfiguration : IEntityTypeConfiguration<BusinessDay>
+{
+    public void Configure(EntityTypeBuilder<BusinessDay> builder)
+    {
+        builder.Property(d => d.BusinessDate).HasColumnType("date");
+        builder.Property(d => d.OpeningNotes).HasMaxLength(300);
+        builder.Property(d => d.ClosingNotes).HasMaxLength(500);
+        builder.Property(d => d.CashCount).HasMaxLength(500);
+
+        builder.HasIndex(d => d.BusinessDate);
+        builder.HasIndex(d => d.Status).IsUnique().HasFilter("[Status] = 1");
+
+        builder.HasOne(d => d.OpenedBy).WithMany().HasForeignKey(d => d.OpenedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(d => d.ClosedBy).WithMany().HasForeignKey(d => d.ClosedByUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

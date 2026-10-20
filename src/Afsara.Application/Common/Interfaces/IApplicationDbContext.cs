@@ -15,6 +15,7 @@ public interface IApplicationDbContext : IDisposable, IAsyncDisposable
     DbSet<OrderItem> OrderItems { get; }
     DbSet<RestaurantSetting> RestaurantSettings { get; }
     DbSet<AppLicense> Licenses { get; }
+    DbSet<BusinessDay> BusinessDays { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

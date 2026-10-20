@@ -12,7 +12,7 @@ public class RestaurantSetting : BaseEntity
 
     public decimal CashTaxPercent { get; set; } = 16m;
     public decimal CardTaxPercent { get; set; } = 5m;
-    public decimal ServiceChargePercent { get; set; }
+    public int ServiceChargeAmount { get; set; }
     public decimal DefaultDeliveryCharge { get; set; }
 
     public string InvoiceFooter { get; set; } = "Thank you for dining with us!";

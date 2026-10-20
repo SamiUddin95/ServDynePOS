@@ -25,9 +25,10 @@
 1. Copy `ServDynePOS_Setup_1.0.0.exe` to the client PC (USB or share).
 2. Run it → Next → Finish. It installs to `C:\Program Files\ServDyne POS` and creates a desktop shortcut.
 3. **Edit the connection string** if needed: open `C:\Program Files\ServDyne POS\appsettings.json` in Notepad (Run as administrator → open file) and set:
-   - Local SQL Express: `"Server=.\SQLEXPRESS;Database=AfsaraPOS;Trusted_Connection=True;TrustServerCertificate=True;"`
-   - Remote server:     `"Server=SERVER-PC\SQLEXPRESS;Database=AfsaraPOS;Trusted_Connection=True;TrustServerCertificate=True;"`
-   - SQL auth:          `"Server=.\SQLEXPRESS;Database=AfsaraPOS;User Id=pos;Password=***;TrustServerCertificate=True;"`
+   - Local SQL Express: `"Server=.\\SQLEXPRESS;Database=AfsaraPOS;Trusted_Connection=True;TrustServerCertificate=True;"`
+   - Remote server:     `"Server=SERVER-PC\\SQLEXPRESS;Database=AfsaraPOS;Trusted_Connection=True;TrustServerCertificate=True;"`
+   - SQL auth:          `"Server=.\\SQLEXPRESS;Database=AfsaraPOS;User Id=pos;Password=***;TrustServerCertificate=True;"`
+   - **Backslashes must be doubled (`\\`) in JSON**, otherwise the app fails to start. `Server=.` only works for a default instance (MSSQLSERVER), not SQL Express.
 4. Launch **ServDyne POS** from the desktop. First run takes ~30-60 s (creates the `AfsaraPOS` database and seeds a sample menu).
 5. Sign in: **admin / admin123** → click your name in the header → change the password.
 6. Open **Settings** (gear): restaurant name, address, phone, NTN, taxes, printers → **Save** → **Test Print**.

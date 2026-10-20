@@ -3,6 +3,7 @@ using Afsara.Application.Catalog;
 using Afsara.Application.Common;
 using Afsara.Application.Common.Interfaces;
 using Afsara.Application.Customers;
+using Afsara.Application.Days;
 using Afsara.Application.Licensing;
 using Afsara.Application.Orders;
 using Afsara.Application.Settings;
@@ -24,9 +25,13 @@ public class MainForm : Form
     private readonly IUserSession _session;
     private readonly IAuthService _auth;
     private readonly ILicenseService _license;
+    private readonly IBusinessDayService _days;
     private readonly FormFactory _forms;
 
     private RestaurantSetting _settings = new();
+    private BusinessDay? _day;
+    private readonly Label _dayLabel = new();
+    private Button _dayButton = null!;
     private List<Category> _categories = new();
     private List<MenuItem> _items = new();
     private readonly Dictionary<int, Color> _categoryColors = new();
@@ -65,9 +70,10 @@ public class MainForm : Form
 
     public MainForm(IOrderService orders, ICatalogService catalog, ISettingsService settingsService,
         ICustomerService customers, IReceiptPrinter printer, IUserSession session, IAuthService auth,
-        ILicenseService license, FormFactory forms)
+        ILicenseService license, IBusinessDayService days, FormFactory forms)
     {
         _orders = orders;
+        _days = days;
         _catalog = catalog;
         _settingsService = settingsService;
         _customers = customers;
@@ -119,7 +125,11 @@ public class MainForm : Form
         _timer.Start();
 
         Load += async (_, _) => await this.RunAsync(LoadDataAsync);
-        Shown += async (_, _) => await this.RunAsync(WarnLicenseExpiryAsync);
+        Shown += async (_, _) =>
+        {
+            await this.RunAsync(WarnLicenseExpiryAsync);
+            await this.RunAsync(CheckDayAsync);
+        };
         FormClosing += OnFormClosing;
     }
 
@@ -158,6 +168,8 @@ public class MainForm : Form
         header.Controls.Add(info, 1, 0);
 
         var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = Padding.Empty, Padding = new Padding(0, 10, 0, 0) };
+        _dayButton = HeaderButton("Open Day", Theme.Success, ToggleDayAsync);
+        actions.Controls.Add(_dayButton);
         actions.Controls.Add(HeaderButton("Running Orders", Theme.Warning, async () => await OpenRunningOrdersAsync()));
         if (user.CanManage)
         {
@@ -172,10 +184,19 @@ public class MainForm : Form
 
     private Control BuildStatusBar()
     {
-        var bar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = Theme.Surface, Margin = Padding.Empty };
+        var bar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, BackColor = Theme.Surface, Margin = Padding.Empty };
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         bar.Controls.Add(_status, 0, 0);
+
+        _dayLabel.AutoSize = true;
+        _dayLabel.Anchor = AnchorStyles.Right;
+        _dayLabel.Margin = new Padding(0, 0, 24, 0);
+        _dayLabel.Font = Theme.Font(9.5f, FontStyle.Bold);
+        _dayLabel.Cursor = Cursors.Hand;
+        _dayLabel.Click += async (_, _) => await ToggleDayAsync();
+        bar.Controls.Add(_dayLabel, 1, 0);
 
         _licenseLabel.AutoSize = true;
         _licenseLabel.Anchor = AnchorStyles.Right;
@@ -185,7 +206,7 @@ public class MainForm : Form
             _licenseLabel.Cursor = Cursors.Hand;
             _licenseLabel.Click += async (_, _) => await UpdateLicenseAsync();
         }
-        bar.Controls.Add(_licenseLabel, 1, 0);
+        bar.Controls.Add(_licenseLabel, 2, 0);
         return bar;
     }
 
@@ -443,6 +464,8 @@ public class MainForm : Form
         _categories = await _catalog.GetCategoriesAsync(activeOnly: true);
         _items = await _catalog.GetMenuItemsAsync(activeOnly: true);
         var waiters = await _catalog.GetWaitersAsync(activeOnly: true);
+        _day = await _days.GetCurrentAsync();
+        RefreshDay();
 
         _binding = true;
         _waiter.Items.Clear();
@@ -534,7 +557,8 @@ public class MainForm : Form
 
         _tableButton.Enabled = _draft.OrderType == OrderType.DineIn;
         _tableButton.Text = _draft.OrderType != OrderType.DineIn ? "No Table"
-            : _draft.TableName is null ? "Select Table (F7)" : $"Table: {_draft.TableName}";
+            : _draft.TableName is null ? "Select Table (F7)"
+            : _draft.OrderId is null ? $"Table: {_draft.TableName}" : $"Table: {_draft.TableName} (Change F7)";
         _tableButton.BackColor = _draft.OrderType != OrderType.DineIn ? Theme.Border
             : _draft.TableName is null ? Theme.Primary : Theme.Success;
 
@@ -588,11 +612,10 @@ public class MainForm : Form
 
     private void RenderTotals()
     {
-        var totals = OrderCalculator.Calculate(_draft, _settings.CashTaxPercent, _settings.ServiceChargePercent);
+        var totals = OrderCalculator.Calculate(_draft, _settings.CashTaxPercent, _settings.ServiceChargeAmount);
         _subTotal.Text = Ui.Money(totals.SubTotal);
         _discountCaption.Text = totals.DiscountPercent > 0 ? $"Discount ({totals.DiscountPercent:0.##}%)" : "Discount";
         _discount.Text = totals.DiscountAmount > 0 ? $"- {Ui.Money(totals.DiscountAmount)}" : "0";
-        _serviceCaption.Text = $"Service Charges ({totals.ServiceChargePercent:0.##}%)";
         _service.Text = Ui.Money(totals.ServiceCharge);
         _taxCaption.Text = $"Sales Tax ({totals.TaxPercent:0.##}% cash)";
         _tax.Text = Ui.Money(totals.TaxAmount);
@@ -620,6 +643,12 @@ public class MainForm : Form
 
     private void AddItem(MenuItem item)
     {
+        if (_day is null)
+        {
+            PromptOpenDay();
+            return;
+        }
+
         var line = _draft.Lines.FirstOrDefault(l => l.MenuItemId == item.Id && string.IsNullOrEmpty(l.Notes));
         if (line is null)
         {
@@ -694,7 +723,7 @@ public class MainForm : Form
             return;
         }
 
-        var totals = OrderCalculator.Calculate(_draft, _settings.CashTaxPercent, _settings.ServiceChargePercent);
+        var totals = OrderCalculator.Calculate(_draft, _settings.CashTaxPercent, _settings.ServiceChargeAmount);
         using var dialog = new DiscountDialog(_draft.DiscountPercent, _draft.DiscountAmount, totals.SubTotal);
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         _draft.DiscountPercent = dialog.DiscountPercent;
@@ -756,6 +785,23 @@ public class MainForm : Form
             return;
         }
 
+        if (table.TableId == _draft.TableId) return;
+
+        if (_draft.OrderId is int orderId)
+        {
+            var from = _draft.TableName ?? "-";
+            if (!Ui.Confirm(this, $"Move order #{_draft.OrderNo} from table {from} to table {table.Name}?")) return;
+            await this.RunAsync(async () =>
+            {
+                var name = await _orders.ChangeTableAsync(orderId, table.TableId);
+                _draft.TableId = table.TableId;
+                _draft.TableName = name;
+                RefreshOrder();
+                SetStatus($"Order #{_draft.OrderNo} moved from table {from} to table {name}.");
+            });
+            return;
+        }
+
         _draft.TableId = table.TableId;
         _draft.TableName = table.Name;
         RefreshOrder();
@@ -807,14 +853,23 @@ public class MainForm : Form
         await this.RunAsync(async () =>
         {
             var result = await _orders.SendToKitchenAsync(_draft);
-            if (result.Ticket is null)
-            {
-                SetStatus("No new items to send to the kitchen. Order saved.");
-            }
-            else
+            if (result.Ticket is not null)
             {
                 await PrintSafeAsync(() => _printer.PrintKotAsync(result.Ticket), "KOT");
                 SetStatus($"KOT #{result.Ticket.KotNumber} sent to kitchen for order #{result.Ticket.OrderNo}.");
+            }
+            else
+            {
+                var reprint = await _orders.ReprintKotAsync(result.OrderId);
+                if (reprint is not null)
+                {
+                    await PrintSafeAsync(() => _printer.PrintKotAsync(reprint), "KOT");
+                    SetStatus($"KOT #{reprint.KotNumber} reprinted for order #{reprint.OrderNo}.");
+                }
+                else
+                {
+                    SetStatus("Nothing sent to the kitchen yet. Order saved.");
+                }
             }
 
             if (_draft.OrderType == OrderType.DineIn) NewOrder();
@@ -840,11 +895,7 @@ public class MainForm : Form
         if (!EnsureItems()) return;
         await this.RunAsync(async () =>
         {
-            var kitchen = await _orders.SendToKitchenAsync(_draft);
-            if (kitchen.Ticket is not null)
-                await PrintSafeAsync(() => _printer.PrintKotAsync(kitchen.Ticket), "KOT");
-
-            var orderId = kitchen.OrderId;
+            var orderId = await _orders.SaveAsync(_draft);
             await ReloadAsync(orderId);
 
             var totals = new Dictionary<PaymentMethod, OrderTotals>();
@@ -859,8 +910,9 @@ public class MainForm : Form
             }
 
             var invoice = await _orders.CompleteAsync(orderId, dialog.Method, dialog.Received);
-            await PrintSafeAsync(() => _printer.PrintInvoiceAsync(invoice), "invoice");
-            SetStatus($"Order #{invoice.OrderNo} settled by {invoice.PaymentMethod}. Total {Ui.Money(invoice.GrandTotal)}  |  Change {Ui.Money(invoice.Change)}");
+            if (dialog.PrintReceipt)
+                await PrintSafeAsync(() => _printer.PrintInvoiceAsync(invoice, skipPreview: true), "invoice");
+            SetStatus($"Order #{invoice.OrderNo} {(dialog.PrintReceipt ? "settled" : "completed without receipt")} by {invoice.PaymentMethod}. Total {Ui.Money(invoice.GrandTotal)}  |  Change {Ui.Money(invoice.Change)}");
             NewOrder();
         });
     }
@@ -911,6 +963,111 @@ public class MainForm : Form
             await _auth.ChangePasswordAsync(current, next);
             Ui.Info(this, "Password changed successfully.");
         });
+    }
+
+    private void RefreshDay()
+    {
+        if (_day is null)
+        {
+            _dayLabel.Text = "BUSINESS DAY NOT OPEN - click to open";
+            _dayLabel.ForeColor = Theme.Danger;
+            _dayButton.Text = "Open Day";
+            _dayButton.BackColor = Theme.Success;
+        }
+        else
+        {
+            _dayLabel.Text = $"Business Day: {_day.BusinessDate:dd-MMM-yyyy}  (opened {_day.OpenedAt:hh:mm tt} by {_day.OpenedBy?.FullName})";
+            _dayLabel.ForeColor = Theme.Success;
+            _dayButton.Text = "Day Close";
+            _dayButton.BackColor = Brand.Orange;
+        }
+        _dayButton.FlatAppearance.MouseOverBackColor = Theme.Darken(_dayButton.BackColor, 0.12f);
+        _dayButton.FlatAppearance.MouseDownBackColor = Theme.Darken(_dayButton.BackColor, 0.22f);
+    }
+
+    private async Task CheckDayAsync()
+    {
+        _day = await _days.GetCurrentAsync();
+        RefreshDay();
+
+        if (_day is null)
+        {
+            OpenDay();
+            return;
+        }
+
+        if (DateTime.Now - _day.OpenedAt < TimeSpan.FromHours(24)) return;
+        var message = $"Business day {_day.BusinessDate:dd-MMM-yyyy} has been open since {_day.OpenedAt:dd-MMM-yyyy hh:mm tt}.\n\n" +
+                      "Sales are still being recorded under that date. Please perform Day Close and open a new day.";
+        if (!_session.RequireUser().CanManage)
+        {
+            Ui.Warn(this, message);
+            return;
+        }
+        if (MessageBox.Show(this, $"{message}\n\nClose the day now?", $"{Brand.Product} - Day Close Pending",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            CloseDay();
+    }
+
+    private void PromptOpenDay()
+    {
+        if (Ui.Confirm(this, "The business day is not open yet.\nOpen the day with the opening cash balance now?"))
+            OpenDay();
+    }
+
+    private async Task ToggleDayAsync()
+    {
+        await this.RunAsync(async () => _day = await _days.GetCurrentAsync());
+        RefreshDay();
+        if (_day is null) OpenDay();
+        else CloseDay();
+    }
+
+    private void OpenDay()
+    {
+        using (var dialog = _forms.Create<OpenDayForm>())
+        {
+            if (dialog.ShowDialog(this) != DialogResult.OK || dialog.OpenedDay is null)
+            {
+                SetStatus("Business day is not open. Click 'Open Day' to start taking orders.");
+                return;
+            }
+            _day = dialog.OpenedDay;
+        }
+
+        RefreshDay();
+        SetStatus($"Business day {_day.BusinessDate:dd-MMM-yyyy} opened with balance {_settings.CurrencySymbol} {Ui.Money(_day.OpeningBalance)}.");
+    }
+
+    private void CloseDay()
+    {
+        if (_draft.Lines.Count > 0 && _draft.OrderId is null)
+        {
+            Ui.Warn(this, "There is an unsaved order on the screen.\nHold, settle or clear it before closing the day.");
+            return;
+        }
+
+        DayReport? closed;
+        using (var dialog = _forms.Create<CloseDayForm>())
+        {
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            closed = dialog.ClosedReport;
+        }
+
+        _day = null;
+        RefreshDay();
+        NewOrder();
+        if (closed is null) return;
+
+        var variance = closed.CashVariance ?? 0;
+        var cash = variance == 0 ? "Cash Balanced" : $"{(variance < 0 ? "Cash Short" : "Cash Over")}: {_settings.CurrencySymbol} {Ui.Money(Math.Abs(variance))}";
+        SetStatus($"Business day {closed.BusinessDate:dd-MMM-yyyy} closed. Net sales {_settings.CurrencySymbol} {Ui.Money(closed.NetSales)}. {cash}");
+        if (Ui.Confirm(this, $"Business day {closed.BusinessDate:dd-MMM-yyyy} closed successfully.\n\nNet Sales: {_settings.CurrencySymbol} {Ui.Money(closed.NetSales)}\n{cash}\n\nLog out now?"))
+        {
+            LogoutRequested = true;
+            _auth.Logout();
+            Close();
+        }
     }
 
     private void Logout()

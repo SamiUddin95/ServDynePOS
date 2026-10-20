@@ -69,7 +69,7 @@ public static class InvoiceLayout
         if (inv.Discount > 0)
             Total(inv.DiscountPercent > 0 ? $"Discount ({inv.DiscountPercent:0.##}%):" : "Discount:", $"- {Money(inv.Discount)}");
         if (inv.ServiceCharge > 0)
-            Total($"Service Charges ({inv.ServiceChargePercent:0.##}%):", Money(inv.ServiceCharge));
+            Total("Service Charges:", Money(inv.ServiceCharge));
         if (inv.TaxPercent > 0)
             Total($"Sales Tax ({inv.TaxPercent:0.##}%):", Money(inv.Tax));
         if (inv.DeliveryCharge > 0)

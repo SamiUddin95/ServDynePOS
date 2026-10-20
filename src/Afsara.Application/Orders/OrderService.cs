@@ -1,5 +1,6 @@
 using Afsara.Application.Common;
 using Afsara.Application.Common.Interfaces;
+using Afsara.Application.Days;
 using Afsara.Application.Printing;
 using Afsara.Application.Settings;
 using Afsara.Domain.Entities;
@@ -15,6 +16,8 @@ public interface IOrderService
     Task<OrderDraft> GetDraftAsync(int orderId);
     Task<int> SaveAsync(OrderDraft draft);
     Task<KitchenResult> SendToKitchenAsync(OrderDraft draft);
+    Task<KotTicket?> ReprintKotAsync(int orderId);
+    Task<string> ChangeTableAsync(int orderId, int tableId);
     Task<OrderTotals> GetTotalsAsync(int orderId, PaymentMethod method);
     Task<InvoiceDocument> BuildBillAsync(int orderId, PaymentMethod method);
     Task<InvoiceDocument> CompleteAsync(int orderId, PaymentMethod method, decimal paidAmount);
@@ -137,6 +140,7 @@ public class OrderService : IOrderService
         var settings = await SettingsService.LoadAsync(db);
 
         Validate(draft);
+        var day = await BusinessDayService.RequireOpenAsync(db);
 
         Order order;
         if (draft.OrderId is int id)
@@ -151,18 +155,18 @@ public class OrderService : IOrderService
             if (!draft.Lines.Any(l => l.Quantity > 0))
                 throw new AppException("Add at least one item to the order.");
 
-            var today = DateTime.Today;
             var lastNumber = await db.Orders
-                .Where(o => o.BusinessDate == today)
+                .Where(o => o.BusinessDate == day.BusinessDate)
                 .MaxAsync(o => (int?)o.DailyNumber) ?? 0;
 
             order = new Order
             {
-                BusinessDate = today,
+                BusinessDate = day.BusinessDate,
+                BusinessDayId = day.Id,
                 DailyNumber = lastNumber + 1,
                 CreatedByUserId = user.Id,
                 TaxPercent = settings.CashTaxPercent,
-                ServiceChargePercent = settings.ServiceChargePercent
+                ServiceChargeAmount = settings.ServiceChargeAmount
             };
             db.Orders.Add(order);
         }
@@ -231,6 +235,51 @@ public class OrderService : IOrderService
         return new KitchenResult(orderId, ticket);
     }
 
+    public async Task<KotTicket?> ReprintKotAsync(int orderId)
+    {
+        await using var db = _factory.Create();
+        var settings = await SettingsService.LoadAsync(db);
+        var order = await LoadFullAsync(db, orderId, tracking: false);
+
+        var sent = order.Items.Where(i => i.Quantity > 0 && i.PrintedQuantity > 0).OrderBy(i => i.Id).ToList();
+        if (sent.Count == 0) return null;
+
+        var ticket = CreateKot(order, settings);
+        ticket.IsAdditional = false;
+        ticket.IsDuplicate = true;
+        ticket.Lines = sent.Select(i => new KotLine
+        {
+            Name = i.ItemName,
+            Section = i.KitchenSection,
+            Quantity = i.Quantity,
+            Notes = i.Notes
+        }).ToList();
+        return ticket;
+    }
+
+    public async Task<string> ChangeTableAsync(int orderId, int tableId)
+    {
+        await using var db = _factory.Create();
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new AppException("Order not found.");
+        EnsureOpen(order);
+        if (order.OrderType != OrderType.DineIn)
+            throw new AppException("Only Dine In orders have a table.");
+
+        var table = await db.DiningTables.FirstOrDefaultAsync(t => t.Id == tableId && t.IsActive)
+            ?? throw new AppException("Table not found.");
+
+        var occupied = await db.Orders.AnyAsync(o =>
+            o.Status == OrderStatus.Open && o.TableId == tableId && o.Id != orderId);
+        if (occupied)
+            throw new AppException($"Table {table.Name} already has a running order.");
+
+        order.TableId = tableId;
+        order.UpdatedAt = DateTime.Now;
+        await db.SaveChangesAsync();
+        return table.Name;
+    }
+
     public async Task<OrderTotals> GetTotalsAsync(int orderId, PaymentMethod method)
     {
         await using var db = _factory.Create();
@@ -261,6 +310,7 @@ public class OrderService : IOrderService
         var settings = await SettingsService.LoadAsync(db);
         var order = await LoadFullAsync(db, orderId, tracking: true);
         EnsureOpen(order);
+        var day = await BusinessDayService.RequireOpenAsync(db);
 
         if (!order.Items.Any(i => i.Quantity > 0))
             throw new AppException("Cannot settle an order without items.");
@@ -279,6 +329,11 @@ public class OrderService : IOrderService
             db.OrderItems.Remove(voided);
         }
 
+        if (order.BusinessDayId is null)
+        {
+            order.BusinessDayId = day.Id;
+            order.BusinessDate = day.BusinessDate;
+        }
         order.PaymentMethod = method;
         order.PaidAmount = paidAmount;
         order.ChangeAmount = paidAmount - order.GrandTotal;
@@ -477,7 +532,6 @@ public class OrderService : IOrderService
         SubTotal = order.SubTotal,
         DiscountPercent = order.DiscountPercent,
         Discount = order.DiscountAmount,
-        ServiceChargePercent = order.ServiceChargePercent,
         ServiceCharge = order.ServiceCharge,
         TaxPercent = order.TaxPercent,
         Tax = order.TaxAmount,

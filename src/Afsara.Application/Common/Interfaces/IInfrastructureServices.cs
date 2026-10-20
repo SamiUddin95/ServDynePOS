@@ -16,6 +16,8 @@ public interface IDatabaseInitializer
 public interface IReceiptPrinter
 {
     Task PrintKotAsync(KotTicket ticket);
-    Task PrintInvoiceAsync(InvoiceDocument invoice);
+    Task PrintInvoiceAsync(InvoiceDocument invoice, bool skipPreview = false);
     Task PrintSalesSummaryAsync(Reports.SalesReport report);
+    Task PrintDaySalesAsync(Reports.DaySalesReport report);
+    Task PrintDayReportAsync(Days.DayReport report, bool duplicate = false);
 }

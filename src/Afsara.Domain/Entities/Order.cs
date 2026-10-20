@@ -13,6 +13,9 @@ public class Order : BaseEntity
     public string? Notes { get; set; }
     public int KotCount { get; set; }
 
+    public int? BusinessDayId { get; set; }
+    public BusinessDay? BusinessDay { get; set; }
+
     public int? TableId { get; set; }
     public DiningTable? Table { get; set; }
 
@@ -31,7 +34,7 @@ public class Order : BaseEntity
     public decimal SubTotal { get; set; }
     public decimal DiscountPercent { get; set; }
     public decimal DiscountAmount { get; set; }
-    public decimal ServiceChargePercent { get; set; }
+    public int ServiceChargeAmount { get; set; }
     public decimal ServiceCharge { get; set; }
     public decimal TaxPercent { get; set; }
     public decimal TaxAmount { get; set; }
@@ -59,8 +62,8 @@ public class Order : BaseEntity
 
         var taxable = SubTotal - DiscountAmount;
 
-        ServiceCharge = OrderType == OrderType.DineIn
-            ? Round(taxable * ServiceChargePercent / 100m)
+        ServiceCharge = OrderType == OrderType.DineIn && SubTotal > 0
+            ? ServiceChargeAmount
             : 0;
 
         TaxAmount = Round(taxable * TaxPercent / 100m);
